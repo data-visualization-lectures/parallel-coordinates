@@ -61,8 +61,8 @@
             toolHeader.setConfig({
                 logo: { type: "text", text: "Parallel Coordinates" },
                 buttons: [
-                    { label: isJa ? "保存" : "Save", action: function () { saveToCloud(); } },
-                    { label: isJa ? "読込" : "Load", action: function () { loadFromCloud(); } }
+                    { label: isJa ? "プロジェクトの保存" : "Save Project", action: function () { saveToCloud(); }, align: "right" },
+                    { label: isJa ? "プロジェクトの読込" : "Load Project", action: function () { loadFromCloud(); }, align: "right" }
                 ]
             });
         }
