@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title id="page-title">Parallel Coordinates Chart</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/parcoords/0.7.0/d3.parcoords.min.css">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <dataviz-tool-header></dataviz-tool-header>
+
+    <header class="toolbar">
+        <h1>Parallel Coordinates</h1>
+        <div class="toolbar-controls">
+            <div class="toolbar-group">
+                <span class="toolbar-label">Data</span>
+                <label class="upload-btn" id="upload-label">
+                    CSV Upload
+                    <input type="file" id="file-input" accept=".csv">
+                </label>
+                <button id="load-sample" class="sample-btn">Sample</button>
+            </div>
+            <div class="toolbar-separator"></div>
+            <div class="toolbar-group">
+                <span class="chart-hint" id="chart-hint"></span>
+            </div>
+            <div class="toolbar-separator"></div>
+            <div class="toolbar-group">
+                <span class="toolbar-label">Scale</span>
+                <select id="scale-mode">
+                    <option value="original">Original</option>
+                    <option value="normalize">Min-Max (0-1)</option>
+                    <option value="standardize">Z-Score</option>
+                </select>
+                <span class="info-icon" id="scale-info">i
+                    <span class="tooltip" id="scale-tooltip"></span>
+                </span>
+            </div>
+            <div class="toolbar-separator"></div>
+            <div class="toolbar-group">
+                <span class="toolbar-label">Brush</span>
+                <button id="reset-btn">Reset</button>
+                <span id="row-count"></span>
+            </div>
+        </div>
+        <div class="toolbar-group toolbar-right">
+            <span class="toolbar-label">Export</span>
+            <button id="export-csv">CSV</button>
+            <button id="export-svg">SVG</button>
+            <button id="export-png">PNG</button>
+        </div>
+    </header>
+
+    <main>
+        <div id="parcoords-chart" class="parcoords"></div>
+        <div id="data-table-container">
+            <table id="data-table">
+                <thead></thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </main>
+
+    <!-- Project list modal -->
+    <div id="project-modal" class="modal-overlay" style="display:none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modal-title"></h2>
+                <button class="modal-close" id="modal-close">&times;</button>
+            </div>
+            <div id="modal-body"></div>
+        </div>
+    </div>
+
+    <!-- dataviz.jp 共通ヘッダー -->
+    <script src="https://auth.dataviz.jp/lib/supabase.js"></script>
+    <script src="https://auth.dataviz.jp/lib/dataviz-auth-client.js"></script>
+    <script src="https://auth.dataviz.jp/lib/dataviz-tool-header.js" defer></script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.17/d3.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/parcoords/0.7.0/d3.parcoords.min.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
