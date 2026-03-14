@@ -380,9 +380,15 @@
             showToast(i18n.noData, "error");
             return;
         }
-        var name = prompt(i18n.projectName, "");
+        var now = new Date();
+        var defaultName = now.getFullYear() + "-"
+            + String(now.getMonth() + 1).padStart(2, "0") + "-"
+            + String(now.getDate()).padStart(2, "0") + " "
+            + String(now.getHours()).padStart(2, "0") + ":"
+            + String(now.getMinutes()).padStart(2, "0");
+        var name = prompt(i18n.projectName, defaultName);
         if (name === null) return;
-        if (!name.trim()) name = "Untitled";
+        if (!name.trim()) name = defaultName;
 
         showToast(i18n.saving, "info");
 
@@ -506,12 +512,37 @@
                     year: "numeric", month: "short", day: "numeric",
                     hour: "2-digit", minute: "2-digit"
                 });
+                var thumbHtml = '<div class="project-thumbnail project-thumbnail-empty" data-thumb-id="' + escapeHtml(p.id) + '"></div>';
                 html += '<div class="project-list-item" data-id="' + escapeHtml(p.id) + '">'
+                    + thumbHtml
+                    + '<div class="project-info">'
                     + '<span class="project-name">' + escapeHtml(p.name) + '</span>'
                     + '<span class="project-date">' + escapeHtml(dateStr) + '</span>'
+                    + '</div>'
                     + '</div>';
             });
             body.innerHTML = html;
+
+            // Load thumbnails asynchronously
+            projects.forEach(function (p) {
+                if (!p.thumbnail_path) return;
+                var el = body.querySelector('[data-thumb-id="' + p.id + '"]');
+                if (!el) return;
+                fetch(API_BASE + "/" + p.id + "/thumbnail", {
+                    method: "GET",
+                    headers: { "Authorization": "Bearer " + token }
+                }).then(function (res) {
+                    if (!res.ok) return null;
+                    return res.blob();
+                }).then(function (blob) {
+                    if (!blob) return;
+                    var img = document.createElement("img");
+                    img.className = "project-thumbnail";
+                    img.src = URL.createObjectURL(blob);
+                    img.alt = "";
+                    el.replaceWith(img);
+                }).catch(function () {});
+            });
 
             body.querySelectorAll(".project-list-item").forEach(function (item) {
                 item.addEventListener("click", function () {
