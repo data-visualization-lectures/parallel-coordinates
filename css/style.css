@@ -25,12 +25,6 @@ body {
     flex-wrap: wrap;
 }
 
-.toolbar h1 {
-    font-size: 18px;
-    font-weight: 600;
-    color: #222;
-}
-
 .toolbar-controls {
     display: flex;
     align-items: center;
