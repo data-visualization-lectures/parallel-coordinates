@@ -81,11 +81,18 @@
             if (!file) return;
             var reader = new FileReader();
             reader.onload = function (event) {
-                var text = event.target.result;
+                var buffer = event.target.result;
+                var text = new TextDecoder("utf-8").decode(buffer);
+                if (text.indexOf("\uFFFD") !== -1) {
+                    text = new TextDecoder("shift-jis").decode(buffer);
+                }
+                if (text.charCodeAt(0) === 0xFEFF) {
+                    text = text.slice(1);
+                }
                 var parsed = d3.csv.parse(dedupHeaders(text));
                 loadData(parsed);
             };
-            reader.readAsText(file);
+            reader.readAsArrayBuffer(file);
             e.target.value = "";
         });
 
