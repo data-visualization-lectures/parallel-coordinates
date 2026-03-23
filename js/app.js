@@ -150,6 +150,37 @@
             URL.revokeObjectURL(url);
         });
 
+        // Helper: inline CSS-applied transforms onto SVG axis labels for export
+        function inlineAxisLabelTransforms(svgClone) {
+            var labels = svgClone.querySelectorAll(".axis > text, text.label");
+            for (var i = 0; i < labels.length; i++) {
+                var label = labels[i];
+                var existing = label.getAttribute("transform") || "";
+                // Replace the library's translate(0,-5) with CSS's translateY(-14px)
+                if (existing.indexOf("translate(0,-5)") >= 0) {
+                    label.setAttribute("transform", existing.replace("translate(0,-5)", "translate(0,-14)"));
+                } else if (existing.indexOf("translate(0, -5)") >= 0) {
+                    label.setAttribute("transform", existing.replace("translate(0, -5)", "translate(0,-14)"));
+                }
+            }
+        }
+
+        // Helper: prepare SVG string with proper dimensions and inline styles for export
+        function prepareSvgForExport(svgEl) {
+            var clone = svgEl.cloneNode(true);
+            var svgRect = svgEl.getBoundingClientRect();
+            clone.setAttribute("width", svgRect.width);
+            clone.setAttribute("height", svgRect.height);
+            inlineAxisLabelTransforms(clone);
+            var texts = clone.querySelectorAll("text");
+            for (var i = 0; i < texts.length; i++) {
+                if (!texts[i].style.fontSize) {
+                    texts[i].style.fontSize = "11px";
+                }
+            }
+            return clone;
+        }
+
         // Export SVG
         document.getElementById("export-svg").addEventListener("click", function () {
             var container = document.getElementById("parcoords-chart");
@@ -157,6 +188,7 @@
             var svgEl = container.querySelector("svg");
             var w = container.clientWidth;
             var h = container.clientHeight;
+            var containerRect = container.getBoundingClientRect();
 
             var svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
             svg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
@@ -171,27 +203,41 @@
 
             for (var i = 0; i < canvases.length; i++) {
                 var canvas = canvases[i];
+                var canvasRect = canvas.getBoundingClientRect();
                 var img = document.createElementNS("http://www.w3.org/2000/svg", "image");
-                img.setAttribute("x", canvas.offsetLeft);
-                img.setAttribute("y", canvas.offsetTop);
-                img.setAttribute("width", canvas.width);
-                img.setAttribute("height", canvas.height);
+                img.setAttribute("x", canvasRect.left - containerRect.left);
+                img.setAttribute("y", canvasRect.top - containerRect.top);
+                img.setAttribute("width", canvasRect.width);
+                img.setAttribute("height", canvasRect.height);
                 img.setAttributeNS("http://www.w3.org/1999/xlink", "href", canvas.toDataURL("image/png"));
                 svg.appendChild(img);
             }
 
             if (svgEl) {
-                var clone = svgEl.cloneNode(true);
+                var clone = prepareSvgForExport(svgEl);
+                var svgRect = svgEl.getBoundingClientRect();
                 var g = document.createElementNS("http://www.w3.org/2000/svg", "g");
-                g.setAttribute("transform", "translate(" + svgEl.getBoundingClientRect().left + "," + 0 + ")");
+                var offsetX = svgRect.left - containerRect.left;
+                var offsetY = svgRect.top - containerRect.top;
+                g.setAttribute("transform", "translate(" + offsetX + "," + offsetY + ")");
                 while (clone.childNodes.length > 0) {
                     g.appendChild(clone.childNodes[0]);
                 }
                 svg.appendChild(g);
             }
 
+            // Embed stylesheet to fix brush rect styles for standalone SVG.
+            // Use SVG 1.1 compatible syntax (no rgba, use stroke-opacity instead)
+            var styleEl = document.createElementNS("http://www.w3.org/2000/svg", "style");
+            styleEl.textContent =
+                ".brush rect.background { fill: none !important; stroke: none !important; }" +
+                ".brush rect.extent { fill: none !important; stroke: #000 !important; stroke-opacity: 0.6 !important; stroke-width: 1 !important; }" +
+                ".brush .resize rect { fill: none !important; stroke: none !important; }";
+            svg.insertBefore(styleEl, svg.firstChild);
+
             var serializer = new XMLSerializer();
             var svgStr = serializer.serializeToString(svg);
+            svgStr = svgStr.replace(/fill:\s*transparent/g, "fill:none");
             var blob = new Blob([svgStr], { type: "image/svg+xml;charset=utf-8" });
             var url = URL.createObjectURL(blob);
             var a = document.createElement("a");
@@ -208,6 +254,7 @@
             var svgEl = container.querySelector("svg");
             var w = container.clientWidth;
             var h = container.clientHeight;
+            var containerRect = container.getBoundingClientRect();
 
             var offscreen = document.createElement("canvas");
             offscreen.width = w;
@@ -218,17 +265,27 @@
 
             for (var i = 0; i < canvases.length; i++) {
                 var canvas = canvases[i];
-                ctx.drawImage(canvas, canvas.offsetLeft, canvas.offsetTop);
+                var canvasRect = canvas.getBoundingClientRect();
+                // Draw canvas at its container-relative position with CSS display size
+                ctx.drawImage(canvas,
+                    canvasRect.left - containerRect.left,
+                    canvasRect.top - containerRect.top,
+                    canvasRect.width, canvasRect.height);
             }
 
             if (svgEl) {
+                var clone = prepareSvgForExport(svgEl);
                 var serializer = new XMLSerializer();
-                var svgStr = serializer.serializeToString(svgEl);
+                var svgStr = serializer.serializeToString(clone);
                 var svgBlob = new Blob([svgStr], { type: "image/svg+xml;charset=utf-8" });
                 var svgUrl = URL.createObjectURL(svgBlob);
                 var img = new Image();
                 img.onload = function () {
-                    ctx.drawImage(img, 0, 0);
+                    var svgRect = svgEl.getBoundingClientRect();
+                    // Draw SVG at its container-relative position
+                    var offsetX = svgRect.left - containerRect.left;
+                    var offsetY = svgRect.top - containerRect.top;
+                    ctx.drawImage(img, offsetX, offsetY);
                     URL.revokeObjectURL(svgUrl);
                     var a = document.createElement("a");
                     a.href = offscreen.toDataURL("image/png");
