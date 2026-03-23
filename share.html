@@ -312,6 +312,12 @@ body {
 
         if (brushExtents && Object.keys(brushExtents).length > 0) {
             pc.brushExtents(brushExtents);
+            // Update table with brushed data immediately
+            var brushed = pc.brushed();
+            if (brushed && brushed.length > 0) {
+                updateTable(brushed);
+                updateCount(brushed.length, data.length);
+            }
         }
     }
 
