@@ -413,6 +413,10 @@ body {
                 numericKeys = project.numericKeys || [];
                 rawData = project.data;
 
+                // Show content BEFORE rendering so container has correct width
+                document.getElementById("share-loading").style.display = "none";
+                document.getElementById("share-content").style.display = "";
+
                 var settings = project.settings || {};
                 document.getElementById("scale-mode").value = settings.scaleMode || "original";
                 applyScaleAndRender(settings.axisOrder, settings.brushExtents);
@@ -458,9 +462,6 @@ body {
                     }, 200);
                 });
 
-                // Show content
-                document.getElementById("share-loading").style.display = "none";
-                document.getElementById("share-content").style.display = "";
             })
             .catch(function (err) {
                 document.getElementById("share-loading").style.display = "none";
