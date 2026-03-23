@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Parallel Coordinates Chart</title>
+
+<!-- OGP meta tags (updated dynamically) -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="Parallel Coordinates Chart">
+<meta property="og:image" content="">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Parallel Coordinates Chart">
+<meta name="twitter:image" content="">
+
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-4W8HBHCGTG"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-4W8HBHCGTG');
+</script>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/parcoords/0.7.0/d3.parcoords.min.css">
+
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', sans-serif;
+  background: #f5f5f5;
+  color: #333;
+}
+#share-app {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+#share-loading {
+  text-align: center;
+  padding: 80px 20px;
+  font-size: 1.1rem;
+  color: #888;
+}
+#share-error {
+  text-align: center;
+  padding: 80px 20px;
+  font-size: 1.1rem;
+  color: #c33;
+}
+#share-title {
+  font-size: 1.4rem;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+#controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+#controls .separator {
+  width: 1px;
+  height: 28px;
+  background: #ccc;
+  margin: 0 4px;
+}
+#controls select,
+#controls button {
+  font-size: 0.85rem;
+  padding: 6px 14px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+#controls select:hover,
+#controls button:hover {
+  border-color: #888;
+  background: #f0f0f0;
+}
+#controls .toolbar-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+#row-count {
+  font-size: 13px;
+  color: #666;
+}
+#parcoords-chart {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+  height: 450px;
+  padding: 10px 0;
+}
+#parcoords-chart .parcoords text {
+  font-size: 11px;
+}
+#parcoords-chart .axis > text {
+  transform: translateY(-14px);
+  cursor: grab;
+}
+#data-table-container {
+  margin-top: 12px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+  max-height: 300px;
+  overflow: auto;
+}
+#data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+#data-table thead th {
+  position: sticky;
+  top: 0;
+  background: #f8f8f8;
+  border-bottom: 2px solid #ddd;
+  padding: 8px 10px;
+  text-align: left;
+  white-space: nowrap;
+  font-weight: 600;
+}
+#data-table tbody td {
+  padding: 6px 10px;
+  border-bottom: 1px solid #eee;
+  white-space: nowrap;
+}
+#data-table tbody tr:nth-child(even) {
+  background: #fafafa;
+}
+#data-table tbody tr:hover {
+  background: #eef4fb;
+}
+.chart-hint {
+  font-size: 12px;
+  color: #aaa;
+  margin-bottom: 8px;
+}
+#share-cta {
+  margin-top: 24px;
+  text-align: center;
+}
+#share-cta a {
+  display: inline-block;
+  padding: 10px 24px;
+  background: #333;
+  color: #fff;
+  text-decoration: none;
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+#share-cta a:hover { background: #555; }
+.site-links {
+  text-align: center;
+  margin-top: 32px;
+  padding: 16px 0;
+  font-size: 0.8rem;
+  color: #999;
+}
+.site-links a { color: #888; text-decoration: none; }
+.site-links a:hover { color: #555; text-decoration: underline; }
+.site-links span { margin: 0 6px; color: #ccc; }
+@media (max-width: 640px) {
+  #share-app { padding: 12px; }
+  #share-title { font-size: 1.1rem; }
+  #parcoords-chart { height: 350px; }
+}
+</style>
+</head>
+<body>
+
+<div id="share-app">
+  <div id="share-loading"></div>
+  <div id="share-error" style="display:none"></div>
+  <div id="share-content" style="display:none">
+    <h1 id="share-title"></h1>
+    <p class="chart-hint" id="chart-hint"></p>
+
+    <div id="controls">
+      <span class="toolbar-label">Scale</span>
+      <select id="scale-mode">
+        <option value="original">Original</option>
+        <option value="normalize">Min-Max (0-1)</option>
+        <option value="standardize">Z-Score</option>
+      </select>
+
+      <div class="separator"></div>
+
+      <span class="toolbar-label">Brush</span>
+      <button id="reset-btn">Reset</button>
+      <span id="row-count"></span>
+    </div>
+
+    <div id="parcoords-chart" class="parcoords"></div>
+
+    <div id="data-table-container">
+      <table id="data-table">
+        <thead></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div id="share-cta">
+      <a id="cta-link" href="index.html"></a>
+    </div>
+    <div class="site-links">
+      <a href="https://www.dataviz.jp/parallel-coordinates/">Parallel Coordinates</a>
+      <span>|</span>
+      <a href="https://www.dataviz.jp/">dataviz.jp</a>
+    </div>
+  </div>
+</div>
+
+<script src="https://auth.dataviz.jp/lib/supabase.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.17/d3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/parcoords/0.7.0/d3.parcoords.min.js"></script>
+
+<script>
+(function () {
+    "use strict";
+
+    var SUPABASE_URL = "https://vebhoeiltxspsurqoxvl.supabase.co";
+    var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZlYmhvZWlsdHhzcHN1cnFveHZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUwNTY4MjMsImV4cCI6MjA4MDYzMjgyM30.5uf-D07Hb0JxL39X9yQ20P-5gFc1CRMdKWhDySrNZ0E";
+
+    var isJa = /^ja\b/.test(navigator.language || "");
+    var i18n = {
+        title: isJa ? "パラレルコーディネイトチャート" : "Parallel Coordinates Chart",
+        hint: isJa
+            ? "軸を縦にドラッグしてフィルタリング ／ 横にドラッグして並べ替え"
+            : "Drag vertically on axes to filter / Drag horizontally to reorder",
+        rows: isJa ? "行" : "rows",
+        loading: isJa ? "読み込み中..." : "Loading...",
+        errorNotFound: isJa ? "シェアデータが見つかりません" : "Shared chart not found",
+        errorLoad: isJa ? "読み込みに失敗しました" : "Failed to load chart",
+        ctaText: isJa ? "自分も Parallel Coordinates を作る" : "Create your own Parallel Coordinates"
+    };
+
+    var pc = null;
+    var allData = [];
+    var rawData = [];
+    var allKeys = [];
+    var numericKeys = [];
+
+    // ─── Utilities ───
+
+    function escapeHtml(str) {
+        return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;");
+    }
+
+    function normalizeMinMax(data, keys) {
+        keys.forEach(function (key) {
+            var vals = data.map(function (r) { return r[key]; }).filter(function (v) { return v !== null; });
+            var min = d3.min(vals);
+            var max = d3.max(vals);
+            var range = max - min;
+            data.forEach(function (row) {
+                if (row[key] === null) return;
+                row[key] = range === 0 ? 0 : +((row[key] - min) / range).toFixed(4);
+            });
+        });
+    }
+
+    function standardizeZScore(data, keys) {
+        keys.forEach(function (key) {
+            var vals = data.map(function (r) { return r[key]; }).filter(function (v) { return v !== null; });
+            var mean = d3.mean(vals);
+            var std = Math.sqrt(d3.mean(vals.map(function (v) { return (v - mean) * (v - mean); })));
+            data.forEach(function (row) {
+                if (row[key] === null) return;
+                row[key] = std === 0 ? 0 : +((row[key] - mean) / std).toFixed(4);
+            });
+        });
+    }
+
+    function renderChart(data, dims_keys, brushExtents) {
+        var container = document.getElementById("parcoords-chart");
+        container.innerHTML = "";
+
+        var dims = {};
+        dims_keys.forEach(function (key) {
+            dims[key] = {};
+        });
+
+        pc = d3.parcoords()("#parcoords-chart")
+            .width(container.clientWidth || 960)
+            .height((container.clientHeight || 400) - 20)
+            .data(data)
+            .dimensions(dims)
+            .color("steelblue")
+            .alpha(data.length > 500 ? 0.1 : 0.35)
+            .margin({ top: 36, left: 10, right: 10, bottom: 16 })
+            .render()
+            .shadows()
+            .alphaOnBrushed(0.15)
+            .createAxes()
+            .reorderable()
+            .brushMode("1D-axes");
+
+        pc.on("brush", function (brushed) {
+            updateTable(brushed);
+            updateCount(brushed.length, allData.length);
+        });
+
+        if (brushExtents && Object.keys(brushExtents).length > 0) {
+            pc.brushExtents(brushExtents);
+        }
+    }
+
+    function updateTable(data) {
+        var thead = document.querySelector("#data-table thead");
+        var tbody = document.querySelector("#data-table tbody");
+
+        var headerHtml = "<tr>";
+        allKeys.forEach(function (key) {
+            headerHtml += "<th>" + escapeHtml(key) + "</th>";
+        });
+        headerHtml += "</tr>";
+        thead.innerHTML = headerHtml;
+
+        var displayData = data.slice(0, 200);
+        var bodyHtml = "";
+        displayData.forEach(function (row) {
+            var dataIdx = allData.indexOf(row);
+            bodyHtml += '<tr data-idx="' + dataIdx + '">';
+            allKeys.forEach(function (key) {
+                var val = row[key];
+                bodyHtml += "<td>" + (val === null || val === undefined ? "" : escapeHtml(String(val))) + "</td>";
+            });
+            bodyHtml += "</tr>";
+        });
+        tbody.innerHTML = bodyHtml;
+    }
+
+    function updateCount(shown, total) {
+        var el = document.getElementById("row-count");
+        el.textContent = shown + " / " + total + " " + i18n.rows;
+    }
+
+    function applyScaleAndRender(axisOrder, brushExtents) {
+        var mode = document.getElementById("scale-mode").value;
+        allData = rawData.map(function (row) {
+            var copy = {};
+            allKeys.forEach(function (k) { copy[k] = row[k]; });
+            return copy;
+        });
+
+        if (mode === "normalize") {
+            normalizeMinMax(allData, numericKeys);
+        } else if (mode === "standardize") {
+            standardizeZScore(allData, numericKeys);
+        }
+
+        var dimsOrder = axisOrder || numericKeys;
+        renderChart(allData, dimsOrder, brushExtents);
+        updateTable(allData);
+        updateCount(allData.length, allData.length);
+    }
+
+    // ─── Main ───
+
+    document.addEventListener("DOMContentLoaded", function () {
+        document.documentElement.lang = isJa ? "ja" : "en";
+        document.getElementById("share-loading").textContent = i18n.loading;
+        document.getElementById("chart-hint").textContent = i18n.hint;
+        document.getElementById("cta-link").textContent = i18n.ctaText;
+
+        var shareId = new URLSearchParams(location.search).get("id");
+        if (!shareId) {
+            document.getElementById("share-loading").style.display = "none";
+            document.getElementById("share-error").style.display = "";
+            document.getElementById("share-error").textContent = i18n.errorNotFound;
+            return;
+        }
+
+        var sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        sb.from("parallel_coordinates_shares")
+            .select("*")
+            .eq("id", shareId)
+            .single()
+            .then(function (result) {
+                if (result.error || !result.data) throw new Error(i18n.errorNotFound);
+
+                var share = result.data;
+                var project = share.chart_config;
+
+                if (!project || !project.data || !project.allKeys) {
+                    throw new Error(i18n.errorNotFound);
+                }
+
+                // Update page
+                document.title = share.title + " | Parallel Coordinates";
+                document.getElementById("share-title").textContent = share.title;
+
+                // Update OGP meta tags
+                var ogImage = SUPABASE_URL + "/storage/v1/object/public/parallel-coordinates-og-images/" + shareId + ".png";
+                document.querySelector('meta[property="og:title"]').content = share.title;
+                document.querySelector('meta[property="og:image"]').content = ogImage;
+                document.querySelector('meta[name="twitter:title"]').content = share.title;
+                document.querySelector('meta[name="twitter:image"]').content = ogImage;
+
+                // Restore data
+                allKeys = project.allKeys;
+                numericKeys = project.numericKeys || [];
+                rawData = project.data;
+
+                var settings = project.settings || {};
+                document.getElementById("scale-mode").value = settings.scaleMode || "original";
+                applyScaleAndRender(settings.axisOrder, settings.brushExtents);
+
+                // Scale mode change
+                document.getElementById("scale-mode").addEventListener("change", function () {
+                    if (rawData.length === 0) return;
+                    applyScaleAndRender();
+                });
+
+                // Reset
+                document.getElementById("reset-btn").addEventListener("click", function () {
+                    if (!pc) return;
+                    pc.brushReset();
+                    updateTable(allData);
+                    updateCount(allData.length, allData.length);
+                });
+
+                // Table row hover → highlight
+                var tbody = document.querySelector("#data-table tbody");
+                tbody.addEventListener("mouseover", function (e) {
+                    var tr = e.target.closest("tr");
+                    if (!tr || !pc) return;
+                    var idx = tr.dataset.idx;
+                    if (idx !== undefined) {
+                        pc.highlight([allData[+idx]]);
+                    }
+                });
+                tbody.addEventListener("mouseout", function () {
+                    if (pc) pc.unhighlight();
+                });
+
+                // Resize
+                var resizeTimer;
+                window.addEventListener("resize", function () {
+                    clearTimeout(resizeTimer);
+                    resizeTimer = setTimeout(function () {
+                        if (!pc) return;
+                        var container = document.getElementById("parcoords-chart");
+                        pc.width(container.clientWidth || 960)
+                          .height((container.clientHeight || 400) - 20)
+                          .render();
+                    }, 200);
+                });
+
+                // Show content
+                document.getElementById("share-loading").style.display = "none";
+                document.getElementById("share-content").style.display = "";
+            })
+            .catch(function (err) {
+                document.getElementById("share-loading").style.display = "none";
+                document.getElementById("share-error").style.display = "";
+                document.getElementById("share-error").textContent = i18n.errorLoad + ": " + (err.message || err);
+            });
+    });
+})();
+</script>
+</body>
+</html>

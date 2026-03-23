@@ -3,6 +3,9 @@
 
     var APP_NAME = "parallel-coordinates";
     var API_BASE = "https://api.dataviz.jp/api/projects";
+    var SUPABASE_URL = "https://vebhoeiltxspsurqoxvl.supabase.co";
+    var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZlYmhvZWlsdHhzcHN1cnFveHZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUwNTY4MjMsImV4cCI6MjA4MDYzMjgyM30.5uf-D07Hb0JxL39X9yQ20P-5gFc1CRMdKWhDySrNZ0E";
+    var shareSupabase = null;
 
     var pc = null;
     var allData = [];
@@ -37,7 +40,16 @@
         noProjects: isJa ? "保存されたプロジェクトがありません" : "No saved projects",
         projects: isJa ? "プロジェクト一覧" : "Projects",
         noData: isJa ? "データがありません" : "No data loaded",
-        authRequired: isJa ? "ログインが必要です" : "Login required"
+        authRequired: isJa ? "ログインが必要です" : "Login required",
+        shareChart: isJa ? "シェア" : "Share",
+        shareTitle: isJa ? "シェアするチャートのタイトルを入力:" : "Enter a title for the shared chart:",
+        shareFailed: isJa ? "シェアに失敗: " : "Share failed: ",
+        shareNoData: isJa ? "データがありません" : "No data loaded",
+        shareCopyUrl: isJa ? "URLをコピー" : "Copy URL",
+        shareCopied: isJa ? "コピーしました!" : "Copied!",
+        shareOnX: isJa ? "Xでシェア" : "Share on X",
+        shareClose: isJa ? "閉じる" : "Close",
+        shareModalTitle: isJa ? "シェアURLが作成されました" : "Share URL created"
     };
 
     document.addEventListener("DOMContentLoaded", function () {
@@ -66,6 +78,10 @@
                 ]
             });
         }
+
+        // Share button
+        document.getElementById("share-btn").textContent = i18n.shareChart;
+        document.getElementById("share-btn").addEventListener("click", shareToWeb);
 
         // Sample data
         document.getElementById("load-sample").textContent = i18n.sample;
@@ -373,6 +389,184 @@
         } else {
             callback(offscreen.toDataURL("image/png"));
         }
+    }
+
+    // ─── Share to web ───
+
+    function getShareSupabase() {
+        if (!shareSupabase && window.supabase) {
+            shareSupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        }
+        return shareSupabase;
+    }
+
+    function generateOgImage(title, callback) {
+        var container = document.getElementById("parcoords-chart");
+        var canvases = container.querySelectorAll("canvas");
+        if (canvases.length === 0) { callback(null); return; }
+
+        var OG_W = 1200, OG_H = 630;
+        var chartW = container.clientWidth;
+        var chartH = container.clientHeight;
+
+        var ogCanvas = document.createElement("canvas");
+        ogCanvas.width = OG_W;
+        ogCanvas.height = OG_H;
+        var ctx = ogCanvas.getContext("2d");
+
+        // White background
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(0, 0, OG_W, OG_H);
+
+        // Scale chart to fit OG image (reserve 60px for title bar)
+        var chartArea = OG_H - 60;
+        var scale = Math.min(OG_W / chartW, chartArea / chartH);
+        var offsetX = (OG_W - chartW * scale) / 2;
+        var offsetY = (chartArea - chartH * scale) / 2;
+
+        ctx.save();
+        ctx.translate(offsetX, offsetY);
+        ctx.scale(scale, scale);
+        for (var i = 0; i < canvases.length; i++) {
+            var c = canvases[i];
+            ctx.drawImage(c, c.offsetLeft, c.offsetTop);
+        }
+        ctx.restore();
+
+        // Draw SVG overlay (axis labels, ticks)
+        var svgEl = container.querySelector("svg");
+        if (svgEl) {
+            var svgStr = new XMLSerializer().serializeToString(svgEl);
+            var blob = new Blob([svgStr], { type: "image/svg+xml;charset=utf-8" });
+            var url = URL.createObjectURL(blob);
+            var img = new Image();
+            img.onload = function () {
+                ctx.save();
+                ctx.translate(offsetX, offsetY);
+                ctx.scale(scale, scale);
+                ctx.drawImage(img, 0, 0);
+                ctx.restore();
+                URL.revokeObjectURL(url);
+                addTitleAndFinish();
+            };
+            img.onerror = function () {
+                URL.revokeObjectURL(url);
+                addTitleAndFinish();
+            };
+            img.src = url;
+        } else {
+            addTitleAndFinish();
+        }
+
+        function addTitleAndFinish() {
+            ctx.fillStyle = "rgba(0,0,0,0.6)";
+            ctx.fillRect(0, OG_H - 60, OG_W, 60);
+            ctx.fillStyle = "#fff";
+            ctx.font = "bold 24px -apple-system, BlinkMacSystemFont, sans-serif";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(title, OG_W / 2, OG_H - 30);
+            ogCanvas.toBlob(function (b) { callback(b); }, "image/png");
+        }
+    }
+
+    function shareToWeb() {
+        if (rawData.length === 0) {
+            showToast(i18n.shareNoData, "error");
+            return;
+        }
+
+        var sb = getShareSupabase();
+        if (!sb) {
+            showToast(i18n.shareFailed + "Supabase not loaded", "error");
+            return;
+        }
+
+        var title = prompt(i18n.shareTitle, i18n.title);
+        if (!title) return;
+
+        var chartConfig = getProjectData();
+
+        sb.from("parallel_coordinates_shares")
+            .insert({ title: title, chart_config: chartConfig })
+            .select("id")
+            .single()
+            .then(function (result) {
+                if (result.error) throw result.error;
+                var share = result.data;
+
+                // Upload OG image in background
+                generateOgImage(title, function (pngBlob) {
+                    if (pngBlob) {
+                        sb.storage
+                            .from("parallel-coordinates-og-images")
+                            .upload(share.id + ".png", pngBlob, {
+                                contentType: "image/png",
+                                upsert: true
+                            });
+                    }
+                });
+
+                var ogShareUrl = SUPABASE_URL + "/functions/v1/og-parallel-coordinates-share?id=" + share.id;
+                showShareModal(ogShareUrl, title);
+            })
+            .catch(function (err) {
+                showToast(i18n.shareFailed + (err.message || err), "error");
+            });
+    }
+
+    function showShareModal(shareUrl, title) {
+        var overlay = document.createElement("div");
+        overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10000;display:flex;align-items:center;justify-content:center;";
+
+        var modal = document.createElement("div");
+        modal.style.cssText = "background:#fff;border-radius:12px;padding:24px;max-width:500px;width:90%;text-align:center;";
+
+        var h3 = document.createElement("h3");
+        h3.textContent = i18n.shareModalTitle;
+        h3.style.cssText = "margin:0 0 16px;font-size:1.1rem;";
+        modal.appendChild(h3);
+
+        var urlBox = document.createElement("input");
+        urlBox.type = "text";
+        urlBox.readOnly = true;
+        urlBox.value = shareUrl;
+        urlBox.style.cssText = "width:100%;padding:8px 12px;font-size:0.85rem;border:1px solid #ccc;border-radius:6px;margin-bottom:12px;";
+        modal.appendChild(urlBox);
+
+        var btnRow = document.createElement("div");
+        btnRow.style.cssText = "display:flex;gap:8px;justify-content:center;flex-wrap:wrap;";
+
+        var copyBtn = document.createElement("button");
+        copyBtn.textContent = i18n.shareCopyUrl;
+        copyBtn.style.cssText = "padding:8px 20px;border:1px solid #ccc;border-radius:6px;background:#e8f4e8;cursor:pointer;font-size:0.9rem;";
+        copyBtn.addEventListener("click", function () {
+            navigator.clipboard.writeText(shareUrl);
+            copyBtn.textContent = i18n.shareCopied;
+            setTimeout(function () { copyBtn.textContent = i18n.shareCopyUrl; }, 2000);
+        });
+        btnRow.appendChild(copyBtn);
+
+        var xBtn = document.createElement("button");
+        xBtn.textContent = i18n.shareOnX;
+        xBtn.style.cssText = "padding:8px 20px;border:1px solid #333;border-radius:6px;background:#333;color:#fff;cursor:pointer;font-size:0.9rem;";
+        xBtn.addEventListener("click", function () {
+            var text = encodeURIComponent(title);
+            var url = encodeURIComponent(shareUrl);
+            window.open("https://x.com/intent/tweet?text=" + text + "&url=" + url, "_blank");
+        });
+        btnRow.appendChild(xBtn);
+
+        var closeBtn = document.createElement("button");
+        closeBtn.textContent = i18n.shareClose;
+        closeBtn.style.cssText = "padding:8px 20px;border:1px solid #ccc;border-radius:6px;background:#fff;cursor:pointer;font-size:0.9rem;";
+        closeBtn.addEventListener("click", function () { overlay.remove(); });
+        btnRow.appendChild(closeBtn);
+
+        modal.appendChild(btnRow);
+        overlay.appendChild(modal);
+        overlay.addEventListener("click", function (e) { if (e.target === overlay) overlay.remove(); });
+        document.body.appendChild(overlay);
     }
 
     function showToast(msg, type) {
