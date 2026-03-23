@@ -367,8 +367,14 @@ body {
 
         var dimsOrder = axisOrder || numericKeys;
         renderChart(allData, dimsOrder, brushExtents);
-        updateTable(allData);
-        updateCount(allData.length, allData.length);
+        var brushed = pc && pc.brushed();
+        if (brushed && brushed.length > 0 && brushed.length < allData.length) {
+            updateTable(brushed);
+            updateCount(brushed.length, allData.length);
+        } else {
+            updateTable(allData);
+            updateCount(allData.length, allData.length);
+        }
     }
 
     // ─── Main ───
