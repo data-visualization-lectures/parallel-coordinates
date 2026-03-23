@@ -13,6 +13,7 @@
     var allKeys = [];
     var numericKeys = [];
     var currentProjectId = null;
+    var lastLoadedName = "";
 
     var isJa = /^ja\b/.test(navigator.language || "");
     var i18n = {
@@ -87,6 +88,7 @@
         document.getElementById("load-sample").textContent = i18n.sample;
         document.getElementById("load-sample").addEventListener("click", function () {
             d3.csv("data/yogurt.csv", function (data) {
+                lastLoadedName = "コンビニ・ヨーグルトの栄養成分";
                 loadData(data);
             });
         });
@@ -95,6 +97,7 @@
         document.getElementById("file-input").addEventListener("change", function (e) {
             var file = e.target.files[0];
             if (!file) return;
+            lastLoadedName = file.name.replace(/\.[^.]+$/, "");
             var reader = new FileReader();
             reader.onload = function (event) {
                 var buffer = event.target.result;
@@ -539,7 +542,7 @@
             return;
         }
 
-        var title = prompt(i18n.shareTitle, i18n.title);
+        var title = prompt(i18n.shareTitle, lastLoadedName || i18n.title);
         if (!title) return;
 
         var chartConfig = getProjectData();
@@ -638,12 +641,14 @@
             showToast(i18n.noData, "error");
             return;
         }
-        var now = new Date();
-        var defaultName = now.getFullYear() + "-"
-            + String(now.getMonth() + 1).padStart(2, "0") + "-"
-            + String(now.getDate()).padStart(2, "0") + " "
-            + String(now.getHours()).padStart(2, "0") + ":"
-            + String(now.getMinutes()).padStart(2, "0");
+        var defaultName = lastLoadedName || (function () {
+            var now = new Date();
+            return now.getFullYear() + "-"
+                + String(now.getMonth() + 1).padStart(2, "0") + "-"
+                + String(now.getDate()).padStart(2, "0") + " "
+                + String(now.getHours()).padStart(2, "0") + ":"
+                + String(now.getMinutes()).padStart(2, "0");
+        })();
         var name = prompt(i18n.projectName, defaultName);
         if (name === null) return;
         if (!name.trim()) name = defaultName;
