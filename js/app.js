@@ -2,7 +2,6 @@
     "use strict";
 
     var APP_NAME = "parallel-coordinates";
-    var API_BASE = "https://api.dataviz.jp/api/projects";
     var SUPABASE_URL = "https://vebhoeiltxspsurqoxvl.supabase.co";
     var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZlYmhvZWlsdHhzcHN1cnFveHZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUwNTY4MjMsImV4cCI6MjA4MDYzMjgyM30.5uf-D07Hb0JxL39X9yQ20P-5gFc1CRMdKWhDySrNZ0E";
     var shareSupabase = null;
@@ -31,17 +30,7 @@
               + '<b>Z-Score</b>: Standardize each axis to mean=0, std=1. Useful for spotting outliers.',
         rows: isJa ? "行" : "rows",
         sample: isJa ? "サンプル" : "Sample",
-        projectName: isJa ? "プロジェクト名を入力してください" : "Enter a project name",
-        saving: isJa ? "保存中..." : "Saving...",
-        saved: isJa ? "保存しました" : "Saved",
-        loading: isJa ? "読み込み中..." : "Loading...",
-        loaded: isJa ? "読み込みました" : "Loaded",
-        saveError: isJa ? "保存に失敗しました" : "Save failed",
-        loadError: isJa ? "読み込みに失敗しました" : "Load failed",
-        noProjects: isJa ? "保存されたプロジェクトがありません" : "No saved projects",
-        projects: isJa ? "プロジェクト一覧" : "Projects",
         noData: isJa ? "データがありません" : "No data loaded",
-        authRequired: isJa ? "ログインが必要です" : "Login required",
         shareChart: isJa ? "シェア" : "Share",
         shareTitle: isJa ? "シェアするチャートのタイトルを入力:" : "Enter a title for the shared chart:",
         shareFailed: isJa ? "シェアに失敗: " : "Share failed: ",
@@ -74,9 +63,38 @@
             toolHeader.setConfig({
                 logo: { type: "text", text: "Parallel Coordinates" },
                 buttons: [
-                    { label: isJa ? "プロジェクトの保存" : "Save Project", action: function () { saveToCloud(); }, align: "right" },
-                    { label: isJa ? "プロジェクトの読込" : "Load Project", action: function () { loadFromCloud(); }, align: "right" }
+                    { label: isJa ? "プロジェクトの保存" : "Save Project", action: function () {
+                        if (rawData.length === 0) {
+                            toolHeader.showMessage(i18n.noData, "error");
+                            return;
+                        }
+                        generateThumbnail(function (thumbnailDataUri) {
+                            toolHeader.showSaveModal({
+                                name: lastLoadedName || "",
+                                data: getProjectData(),
+                                thumbnailDataUri: thumbnailDataUri,
+                                existingProjectId: currentProjectId
+                            });
+                        });
+                    }, align: "right" },
+                    { label: isJa ? "プロジェクトの読込" : "Load Project", action: function () { toolHeader.showLoadModal(); }, align: "right" }
                 ]
+            });
+
+            toolHeader.setProjectConfig({
+                appName: APP_NAME,
+                onProjectLoad: function (projectData) {
+                    restoreProject(projectData);
+                },
+                onProjectSave: function (meta) {
+                    currentProjectId = meta.id;
+                    lastLoadedName = meta.name;
+                },
+                onProjectDelete: function (projectId) {
+                    if (currentProjectId === projectId) {
+                        currentProjectId = null;
+                    }
+                }
             });
         }
 
@@ -318,12 +336,6 @@
             if (pc) pc.unhighlight();
         });
 
-        // Modal close
-        document.getElementById("modal-close").addEventListener("click", closeModal);
-        document.getElementById("project-modal").addEventListener("click", function (e) {
-            if (e.target === this) closeModal();
-        });
-
         // Resize
         var resizeTimer;
         window.addEventListener("resize", function () {
@@ -337,8 +349,11 @@
         // Auto-load from URL parameter ?project_id=
         var params = new URLSearchParams(window.location.search);
         var projectId = params.get("project_id");
-        if (projectId) {
-            loadProjectById(projectId);
+        if (projectId && toolHeader) {
+            toolHeader.loadProject(projectId).then(function (projectData) {
+                currentProjectId = projectId;
+                restoreProject(projectData);
+            });
             window.history.replaceState({}, document.title, window.location.pathname);
         }
     });
@@ -381,15 +396,6 @@
     }
 
     // ─── Cloud save/load ───
-
-    function getAuthToken() {
-        if (!window.datavizSupabase) return Promise.reject(new Error("Not authenticated"));
-        return window.datavizSupabase.auth.getSession().then(function (result) {
-            var session = result.data.session;
-            if (!session) throw new Error("No session");
-            return session.access_token;
-        });
-    }
 
     function getProjectData() {
         return {
@@ -634,206 +640,6 @@
         if (toolHeader && toolHeader.showMessage) {
             toolHeader.showMessage(msg, type || "success");
         }
-    }
-
-    function saveToCloud() {
-        if (rawData.length === 0) {
-            showToast(i18n.noData, "error");
-            return;
-        }
-        var defaultName = lastLoadedName || (function () {
-            var now = new Date();
-            return now.getFullYear() + "-"
-                + String(now.getMonth() + 1).padStart(2, "0") + "-"
-                + String(now.getDate()).padStart(2, "0") + " "
-                + String(now.getHours()).padStart(2, "0") + ":"
-                + String(now.getMinutes()).padStart(2, "0");
-        })();
-        var name = prompt(i18n.projectName, defaultName);
-        if (name === null) return;
-        if (!name.trim()) name = defaultName;
-
-        showToast(i18n.saving, "info");
-
-        getAuthToken().then(function (token) {
-            generateThumbnail(function (thumbnailDataUrl) {
-                var projectData = getProjectData();
-                var body = {
-                    name: name.trim(),
-                    app_name: APP_NAME,
-                    data: projectData
-                };
-                if (thumbnailDataUrl) {
-                    body.thumbnail = thumbnailDataUrl;
-                }
-
-                var method = "POST";
-                var url = API_BASE;
-                if (currentProjectId) {
-                    method = "PUT";
-                    url = API_BASE + "/" + currentProjectId;
-                    delete body.app_name;
-                }
-
-                fetch(url, {
-                    method: method,
-                    headers: {
-                        "Authorization": "Bearer " + token,
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify(body)
-                }).then(function (res) {
-                    if (!res.ok) throw new Error(res.status);
-                    return res.json();
-                }).then(function (result) {
-                    if (result.project && result.project.id) {
-                        currentProjectId = result.project.id;
-                    }
-                    showToast(i18n.saved, "success");
-                }).catch(function () {
-                    showToast(i18n.saveError, "error");
-                });
-            });
-        }).catch(function () {
-            showToast(i18n.authRequired, "error");
-        });
-    }
-
-    function loadFromCloud() {
-        showToast(i18n.loading, "info");
-
-        getAuthToken().then(function (token) {
-            fetch(API_BASE + "?app=" + APP_NAME, {
-                method: "GET",
-                headers: { "Authorization": "Bearer " + token }
-            }).then(function (res) {
-                if (!res.ok) throw new Error(res.status);
-                return res.json();
-            }).then(function (result) {
-                var projects = result.projects || [];
-                showProjectModal(projects, token);
-            }).catch(function () {
-                showToast(i18n.loadError, "error");
-            });
-        }).catch(function () {
-            showToast(i18n.authRequired, "error");
-        });
-    }
-
-    function loadProjectById(projectId) {
-        var toolHeader = document.querySelector("dataviz-tool-header");
-        if (toolHeader && toolHeader.showMessage) {
-            showToast(i18n.loading, "info");
-        }
-
-        getAuthToken().then(function (token) {
-            fetch(API_BASE + "/" + projectId, {
-                method: "GET",
-                headers: { "Authorization": "Bearer " + token }
-            }).then(function (res) {
-                if (!res.ok) throw new Error(res.status);
-                return res.json();
-            }).then(function (projectData) {
-                currentProjectId = projectId;
-                restoreProject(projectData);
-                showToast(i18n.loaded, "success");
-            }).catch(function () {
-                showToast(i18n.loadError, "error");
-            });
-        }).catch(function () {
-            // Not authenticated — try with credentials (cookie)
-            fetch("https://auth.dataviz.jp/api/projects/" + projectId, {
-                method: "GET",
-                credentials: "include",
-                headers: { "Content-Type": "application/json" }
-            }).then(function (res) {
-                if (!res.ok) throw new Error(res.status);
-                return res.json();
-            }).then(function (projectData) {
-                currentProjectId = projectId;
-                restoreProject(projectData);
-            }).catch(function () {
-                showToast(i18n.loadError, "error");
-            });
-        });
-    }
-
-    // ─── Project list modal ───
-
-    function showProjectModal(projects, token) {
-        var modal = document.getElementById("project-modal");
-        var body = document.getElementById("modal-body");
-        document.getElementById("modal-title").textContent = i18n.projects;
-
-        if (projects.length === 0) {
-            body.innerHTML = '<div class="project-list-empty">' + escapeHtml(i18n.noProjects) + '</div>';
-        } else {
-            var html = "";
-            projects.forEach(function (p) {
-                var date = new Date(p.updated_at || p.created_at);
-                var dateStr = date.toLocaleDateString(isJa ? "ja-JP" : "en-US", {
-                    year: "numeric", month: "short", day: "numeric",
-                    hour: "2-digit", minute: "2-digit"
-                });
-                var thumbHtml = '<div class="project-thumbnail project-thumbnail-empty" data-thumb-id="' + escapeHtml(p.id) + '"></div>';
-                html += '<div class="project-list-item" data-id="' + escapeHtml(p.id) + '">'
-                    + thumbHtml
-                    + '<div class="project-info">'
-                    + '<span class="project-name">' + escapeHtml(p.name) + '</span>'
-                    + '<span class="project-date">' + escapeHtml(dateStr) + '</span>'
-                    + '</div>'
-                    + '</div>';
-            });
-            body.innerHTML = html;
-
-            // Load thumbnails asynchronously
-            projects.forEach(function (p) {
-                if (!p.thumbnail_path) return;
-                var el = body.querySelector('[data-thumb-id="' + p.id + '"]');
-                if (!el) return;
-                fetch(API_BASE + "/" + p.id + "/thumbnail", {
-                    method: "GET",
-                    headers: { "Authorization": "Bearer " + token }
-                }).then(function (res) {
-                    if (!res.ok) return null;
-                    return res.blob();
-                }).then(function (blob) {
-                    if (!blob) return;
-                    var img = document.createElement("img");
-                    img.className = "project-thumbnail";
-                    img.src = URL.createObjectURL(blob);
-                    img.alt = "";
-                    el.replaceWith(img);
-                }).catch(function () {});
-            });
-
-            body.querySelectorAll(".project-list-item").forEach(function (item) {
-                item.addEventListener("click", function () {
-                    var id = this.dataset.id;
-                    closeModal();
-                    showToast(i18n.loading, "info");
-                    fetch(API_BASE + "/" + id, {
-                        method: "GET",
-                        headers: { "Authorization": "Bearer " + token }
-                    }).then(function (res) {
-                        if (!res.ok) throw new Error(res.status);
-                        return res.json();
-                    }).then(function (projectData) {
-                        currentProjectId = id;
-                        restoreProject(projectData);
-                        showToast(i18n.loaded, "success");
-                    }).catch(function () {
-                        showToast(i18n.loadError, "error");
-                    });
-                });
-            });
-        }
-
-        modal.style.display = "flex";
-    }
-
-    function closeModal() {
-        document.getElementById("project-modal").style.display = "none";
     }
 
     // ─── Chart rendering ───
