@@ -116,14 +116,9 @@
         document.getElementById("share-btn").textContent = i18n.shareChart;
         document.getElementById("share-btn").addEventListener("click", shareToWeb);
 
-        // Sample data
-        document.getElementById("load-sample").textContent = i18n.sample;
-        document.getElementById("load-sample").addEventListener("click", function () {
-            d3.csv("data/yogurt.csv", function (data) {
-                lastLoadedName = "コンビニ・ヨーグルトの栄養成分";
-                loadData(data);
-            });
-        });
+        // Sample data button removed — replaced by dataviz-sample-picker in tool header
+        var sampleBtn = document.getElementById("load-sample");
+        if (sampleBtn) sampleBtn.style.display = "none";
 
         // CSV upload
         document.getElementById("file-input").addEventListener("change", function (e) {
