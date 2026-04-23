@@ -6,6 +6,18 @@
     var SUPABASE_ANON_KEY = "sb_publishable_sAjwbAhC0jnIRjNa34QuTA_CcksMYQG";
     var shareSupabase = null;
 
+    // Schema-driven settings persistence (see https://app.dataviz.jp/lib/settings-compat.js)
+    var SETTINGS_SPEC = {
+        version: 1,
+        chartType: "parallel-coordinates",
+        fields: {
+            scaleMode:    { type: "enum",   default: "original", values: ["original", "normalize", "standardize"] },
+            axisOrder:    { type: "array",  default: [], itemType: "string" },
+            brushExtents: { type: "object", default: {} }
+        },
+        migrations: []
+    };
+
     var pc = null;
     var allData = [];
     var rawData = [];
@@ -418,27 +430,29 @@
     // ─── Cloud save/load ───
 
     function getProjectData() {
-        return {
-            version: 1,
+        var payload = DVZSettingsCompat.build(SETTINGS_SPEC, {
             data: rawData,
-            allKeys: allKeys,
-            numericKeys: numericKeys,
             settings: {
                 scaleMode: document.getElementById("scale-mode").value,
                 axisOrder: pc ? Object.keys(pc.dimensions()) : numericKeys,
                 brushExtents: pc ? pc.brushExtents() : {}
             }
-        };
+        });
+        // allKeys / numericKeys are data metadata (not user settings) — keep them at the top level.
+        payload.allKeys = allKeys;
+        payload.numericKeys = numericKeys;
+        return payload;
     }
 
     function restoreProject(project) {
-        if (!project.data || !project.allKeys) return;
-        allKeys = project.allKeys;
-        numericKeys = project.numericKeys || [];
-        rawData = project.data;
-        var settings = project.settings || {};
-        document.getElementById("scale-mode").value = settings.scaleMode || "original";
-        applyScaleAndRender(settings.axisOrder, settings.brushExtents);
+        if (!project || !project.data || !project.allKeys) return;
+        var normalized = DVZSettingsCompat.normalize(project, SETTINGS_SPEC);
+        allKeys = normalized.allKeys || project.allKeys;
+        numericKeys = normalized.numericKeys || project.numericKeys || [];
+        rawData = normalized.data;
+        var s = normalized.settings;
+        document.getElementById("scale-mode").value = s.scaleMode;
+        applyScaleAndRender(s.axisOrder.length ? s.axisOrder : undefined, s.brushExtents);
     }
 
     function generateThumbnail(callback) {
