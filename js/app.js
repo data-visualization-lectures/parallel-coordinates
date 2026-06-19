@@ -51,7 +51,14 @@
         shareCopied: isJa ? "コピーしました!" : "Copied!",
         shareOnX: isJa ? "Xでシェア" : "Share on X",
         shareClose: isJa ? "閉じる" : "Close",
-        shareModalTitle: isJa ? "シェアURLが作成されました" : "Share URL created"
+        shareModalTitle: isJa ? "シェアURLが作成されました" : "Share URL created",
+        processingProjectList: isJa ? "プロジェクト一覧を読み込み中です" : "Loading project list...",
+        processingProjectLoad: isJa ? "プロジェクトを読み込み中です" : "Loading project...",
+        processingProjectSave: isJa ? "プロジェクトを保存中です" : "Saving project...",
+        processingSavePrep: isJa ? "保存準備中です" : "Preparing save...",
+        processingShare: isJa ? "シェアを作成中です" : "Creating share...",
+        processingFile: isJa ? "ファイルを読み込み中です" : "Reading file...",
+        processingExport: isJa ? "書き出し中です" : "Exporting..."
     };
 
     document.addEventListener("DOMContentLoaded", function () {
@@ -72,6 +79,7 @@
         // Tool header setup
         var toolHeader = document.querySelector("dataviz-tool-header");
         if (toolHeader) {
+            installHeaderProcessingToasts(toolHeader);
             toolHeader.setConfig({
                 logo: { type: "text", text: "Parallel Coordinates" },
                 buttons: [
@@ -80,6 +88,7 @@
                             toolHeader.showMessage(i18n.noData, "error");
                             return;
                         }
+                        showProcessingToast(i18n.processingSavePrep);
                         generateThumbnail(function (thumbnailDataUri) {
                             toolHeader.showSaveModal({
                                 name: lastLoadedName || "",
@@ -113,6 +122,7 @@
             toolHeader.setSampleConfig({
                 toolId: APP_NAME,
                 onSampleSelect: function (detail) {
+                    showProcessingToast(isJa ? "サンプルデータを読み込み中です" : "Loading sample data...");
                     fetch(detail.url)
                         .then(function (res) { return res.text(); })
                         .then(function (text) {
@@ -136,6 +146,7 @@
         document.getElementById("file-input").addEventListener("change", function (e) {
             var file = e.target.files[0];
             if (!file) return;
+            showProcessingToast(i18n.processingFile);
             lastLoadedName = file.name.replace(/\.[^.]+$/, "");
             var reader = new FileReader();
             reader.onload = function (event) {
@@ -172,6 +183,7 @@
         document.getElementById("export-csv").addEventListener("click", function () {
             var brushed = (pc && pc.brushed() && pc.brushed().length > 0)
                 ? pc.brushed() : allData;
+            showProcessingToast(i18n.processingExport);
             var csv = allKeys.map(function (k) {
                 return k.indexOf(",") >= 0 ? '"' + k + '"' : k;
             }).join(",") + "\n";
@@ -228,6 +240,7 @@
             var container = document.getElementById("parcoords-chart");
             var canvases = container.querySelectorAll("canvas");
             var svgEl = container.querySelector("svg");
+            showProcessingToast(i18n.processingExport);
             var w = container.clientWidth;
             var h = container.clientHeight;
             var containerRect = container.getBoundingClientRect();
@@ -294,6 +307,7 @@
             var container = document.getElementById("parcoords-chart");
             var canvases = container.querySelectorAll("canvas");
             var svgEl = container.querySelector("svg");
+            showProcessingToast(i18n.processingExport);
             var w = container.clientWidth;
             var h = container.clientHeight;
             var containerRect = container.getBoundingClientRect();
@@ -586,6 +600,7 @@
         if (!title) return;
 
         var chartConfig = getProjectData();
+        showProcessingToast(i18n.processingShare);
 
         sb.from("parallel_coordinates_shares")
             .insert({ title: title, chart_config: chartConfig })
@@ -669,11 +684,45 @@
         document.body.appendChild(overlay);
     }
 
-    function showToast(msg, type) {
+    function showToast(msg, type, duration) {
         var toolHeader = document.querySelector("dataviz-tool-header");
         if (toolHeader && toolHeader.showMessage) {
-            toolHeader.showMessage(msg, type || "success");
+            toolHeader.showMessage(msg, type || "success", duration);
         }
+    }
+
+    function showProcessingToast(msg) {
+        showToast(msg, "info", 5000);
+    }
+
+    function installHeaderProcessingToasts(header) {
+        if (!header || header.__dvzProcessingToastsInstalled === "1") return;
+
+        if (typeof header.showLoadModal === "function") {
+            var originalShowLoadModal = header.showLoadModal.bind(header);
+            header.showLoadModal = function () {
+                showProcessingToast(i18n.processingProjectList);
+                return originalShowLoadModal.apply(header, arguments);
+            };
+        }
+
+        if (typeof header.loadProject === "function") {
+            var originalLoadProject = header.loadProject.bind(header);
+            header.loadProject = function () {
+                showProcessingToast(i18n.processingProjectLoad);
+                return originalLoadProject.apply(header, arguments);
+            };
+        }
+
+        if (typeof header.saveProject === "function") {
+            var originalSaveProject = header.saveProject.bind(header);
+            header.saveProject = function () {
+                showProcessingToast(i18n.processingProjectSave);
+                return originalSaveProject.apply(header, arguments);
+            };
+        }
+
+        header.__dvzProcessingToastsInstalled = "1";
     }
 
     // ─── Chart rendering ───
