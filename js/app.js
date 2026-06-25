@@ -381,7 +381,7 @@
             }, 200);
         });
 
-        // Auto-load from URL parameter ?data_url= or ?project_id=
+        // Auto-load from URL parameter ?data_url= or ?projectId=
         var params = new URLSearchParams(window.location.search);
         var dataUrl = params.get("data_url");
         if (dataUrl) {
@@ -394,7 +394,7 @@
                 });
             window.history.replaceState({}, document.title, window.location.pathname);
         }
-        var projectId = params.get("project_id");
+        var projectId = params.get("projectId");
         if (projectId && toolHeader) {
             toolHeader.loadProject(projectId).then(function (projectData) {
                 currentProjectId = projectId;
