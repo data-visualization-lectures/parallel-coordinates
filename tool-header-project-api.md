@@ -78,7 +78,7 @@ header.setProjectConfig({
 
 | パラメータ | 型 | 必須 | 説明 |
 |---|---|---|---|
-| `config.appName` | `string` | **必須** | アプリ識別子。API の `app_name` フィルタに使用される（例: `'cartogram-japan'`, `'word-cloud'`） |
+| `config.appName` | `string` | **必須** | builder識別子。API の `app_name` フィルタに使用される（例: `'cartogram'`, `'word-cloud'`） |
 | `config.apiBaseUrl` | `string` | 任意 | API ベースURL。デフォルト: `window.datavizApiUrl` または `'https://api.dataviz.jp'` |
 | `config.onProjectLoad` | `function(projectData)` | **必須** | ユーザーがプロジェクトを選択して読み込んだ時に呼ばれるコールバック |
 | `config.onProjectSave` | `function(projectMeta)` | 任意 | 保存成功時に呼ばれるコールバック |
@@ -209,7 +209,7 @@ header.showSaveModal({
 {
   id: "550e8400-e29b-41d4-a716-446655440000",  // UUID
   name: "人口カートグラム 2024",
-  app_name: "cartogram-japan",
+  app_name: "cartogram",
   user_id: "...",
   storage_path: "...",
   thumbnail_path: "..." | null,
