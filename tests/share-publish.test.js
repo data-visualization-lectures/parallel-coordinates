@@ -14,12 +14,27 @@ test('新しいシェア書き込みは publish Edge Function 経由', () => {
   assert.match(app, /functions\/v1\/publish-parallel-coordinates-share/);
   assert.match(app, /X-Dataviz-Authorization/);
   assert.match(app, /shareRequiresSavedProject/);
+  assert.match(app, /setShareConfig/);
+  assert.match(app, /shareProject/);
   assert.doesNotMatch(app, /from\("parallel_coordinates_shares"\)/);
   assert.doesNotMatch(app, /prompt\(i18n\.shareTitle/);
+  assert.doesNotMatch(app, /shareToWeb/);
   assert.match(publishFunction, /const SHARE_TABLE = "parallel_coordinates_shares"/);
   assert.match(publishFunction, /source_project_id/);
   assert.match(publishFunction, /chartType !== CHART_TYPE/);
   assert.match(migration, /ADD COLUMN IF NOT EXISTS source_project_id/);
+});
+
+test('作成画面の公開ボタンはヘッダーにありチャート領域にはない', () => {
+  const app = read('js/app.js');
+  const index = read('index.html');
+  const css = read('css/style.css');
+
+  assert.match(app, /setShareConfig/);
+  assert.match(app, /shareProject/);
+  assert.doesNotMatch(index, /id=["']share-btn["']/);
+  assert.doesNotMatch(index, /share-section/);
+  assert.doesNotMatch(css, /\.share-section/);
 });
 
 test('既存シェアの読み取り経路は残す', () => {

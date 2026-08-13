@@ -9,6 +9,7 @@ dataviz.jp のパラレルコーディネイトチャート。
 | `appName` / `chartType` | `parallel-coordinates` |
 | 公開ホスト | https://parallel-coordinates.dataviz.jp |
 | プロジェクト保存 | `dataviz-tool-header` の `setProjectConfig` / `?projectId=` |
+| 作成画面の公開 | ヘッダーのシェア（読込・保存の右）。`setShareConfig` / `shareProject()`。チャート領域には置かない |
 | シェアテーブル | `parallel_coordinates_shares` |
 | publish 関数 | `publish-parallel-coordinates-share` |
 | 公開 URL | `/share.html?id=` |

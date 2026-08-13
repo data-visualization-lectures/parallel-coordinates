@@ -2,6 +2,7 @@
     "use strict";
 
     var APP_NAME = "parallel-coordinates";
+    var PUBLIC_SHARE_ORIGIN = "https://parallel-coordinates.dataviz.jp";
     var SUPABASE_URL = "https://vebhoeiltxspsurqoxvl.supabase.co";
     var SUPABASE_ANON_KEY = "sb_publishable_sAjwbAhC0jnIRjNa34QuTA_CcksMYQG";
     var shareSupabase = null;
@@ -43,15 +44,7 @@
         rows: isJa ? "行" : "rows",
         sample: isJa ? "サンプル" : "Sample",
         noData: isJa ? "データがありません" : "No data loaded",
-        shareChart: isJa ? "シェア" : "Share",
-        shareFailed: isJa ? "シェアに失敗: " : "Share failed: ",
-        shareNoData: isJa ? "データがありません" : "No data loaded",
         shareRequiresSavedProject: isJa ? "シェアする前にプロジェクトを保存してください" : "Save the project before sharing.",
-        shareCopyUrl: isJa ? "URLをコピー" : "Copy URL",
-        shareCopied: isJa ? "コピーしました!" : "Copied!",
-        shareOnX: isJa ? "Xでシェア" : "Share on X",
-        shareClose: isJa ? "閉じる" : "Close",
-        shareModalTitle: isJa ? "シェアURLが作成されました" : "Share URL created",
         processingProjectList: isJa ? "プロジェクト一覧を読み込み中です" : "Loading project list...",
         processingProjectLoad: isJa ? "プロジェクトを読み込み中です" : "Loading project...",
         processingProjectSave: isJa ? "プロジェクトを保存中です" : "Saving project...",
@@ -83,28 +76,34 @@
             toolHeader.setConfig({
                 logo: { type: "text", text: "Parallel Coordinates" },
                 buttons: [
+                    { label: isJa ? "プロジェクトの読込" : "Load Project", action: function () { toolHeader.showLoadModal(); }, align: "right" },
                     { label: isJa ? "プロジェクトの保存" : "Save Project", action: function () {
-                        if (rawData.length === 0) {
-                            toolHeader.showMessage(i18n.noData, "error");
-                            return;
-                        }
                         showProcessingToast(i18n.processingSavePrep);
-                        generateThumbnail(function (thumbnailDataUri) {
-                            toolHeader.showSaveModal({
-                                name: lastLoadedName || "",
-                                data: getProjectData(),
-                                thumbnailDataUri: thumbnailDataUri,
-                                existingProjectId: currentProjectId
-                            });
+                        buildSavePayload().then(function (payload) {
+                            if (!payload || !payload.data) {
+                                toolHeader.showMessage(i18n.noData, "error");
+                                return;
+                            }
+                            toolHeader.showSaveModal(payload);
                         });
                     }, align: "right" },
-                    { label: isJa ? "プロジェクトの読込" : "Load Project", action: function () { toolHeader.showLoadModal(); }, align: "right" }
+                    { label: isJa ? "シェア" : "Share", action: function () {
+                        if (typeof toolHeader.shareProject === "function") {
+                            toolHeader.shareProject();
+                        }
+                    }, align: "right" }
                 ]
             });
 
             toolHeader.setProjectConfig({
                 appName: APP_NAME,
-                onProjectLoad: function (projectData) {
+                onProjectLoad: function (projectData, meta) {
+                    if (meta && meta.isGroupProject) {
+                        currentProjectId = null;
+                    } else if (meta && meta.projectId) {
+                        currentProjectId = meta.projectId;
+                        if (meta.projectName) lastLoadedName = meta.projectName;
+                    }
                     restoreProject(projectData);
                 },
                 onProjectSave: function (meta) {
@@ -117,6 +116,15 @@
                     }
                 }
             });
+
+            if (typeof toolHeader.setShareConfig === "function") {
+                toolHeader.setShareConfig({
+                    getSavePayload: buildSavePayload,
+                    getShareTitle: getShareTitle,
+                    publishShare: publishShareForHeader,
+                    afterPublish: afterPublishShare
+                });
+            }
 
             // Sample data picker integration
             toolHeader.setSampleConfig({
@@ -133,10 +141,6 @@
                 }
             });
         }
-
-        // Share button
-        document.getElementById("share-btn").textContent = i18n.shareChart;
-        document.getElementById("share-btn").addEventListener("click", shareToWeb);
 
         // Sample data button removed — replaced by dataviz-sample-picker in tool header
         var sampleBtn = document.getElementById("load-sample");
@@ -505,6 +509,26 @@
         }
     }
 
+    function buildSavePayload() {
+        if (rawData.length === 0) {
+            return Promise.resolve(null);
+        }
+        return new Promise(function (resolve) {
+            generateThumbnail(function (thumbnailDataUri) {
+                resolve({
+                    name: lastLoadedName || "",
+                    data: getProjectData(),
+                    thumbnailDataUri: thumbnailDataUri,
+                    existingProjectId: currentProjectId
+                });
+            });
+        });
+    }
+
+    function getShareTitle() {
+        return lastLoadedName || i18n.title;
+    }
+
     // ─── Share to web ───
 
     function getShareSupabase() {
@@ -550,6 +574,64 @@
             throw new Error(publishShareErrorMessage(payload, response.status));
         }
         return payload || {};
+    }
+
+    function escapeHtmlAttr(value) {
+        return String(value || "")
+            .replace(/&/g, "&amp;")
+            .replace(/"/g, "&quot;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;");
+    }
+
+    function buildPublicSharePageUrl(shareId) {
+        return "https://parallel-coordinates.dataviz.jp/share.html?id=" + encodeURIComponent(shareId);
+    }
+
+    function buildOgShareUrl(shareId) {
+        return SUPABASE_URL + "/functions/v1/og-parallel-coordinates-share?id=" + encodeURIComponent(shareId);
+    }
+
+    function buildIframeEmbedCode(shareId, rawTitle) {
+        var title = escapeHtmlAttr(rawTitle || i18n.title);
+        var src = buildPublicSharePageUrl(shareId) + "&embed=1";
+        return '<iframe title="' + title + '" src="' + src + '" frameborder="0" scrolling="auto" referrerpolicy="strict-origin-when-cross-origin" loading="lazy" allowfullscreen="true" style="display:block;width:100%;max-width:100%;height:auto;aspect-ratio:16/10;border:0;"></iframe>';
+    }
+
+    function publishShareForHeader(args) {
+        args = args || {};
+        var projectId = String(args.projectId || "").trim();
+        if (!projectId) {
+            return Promise.reject(new Error(i18n.shareRequiresSavedProject));
+        }
+        var title = String(args.title || getShareTitle() || "").trim() || i18n.title;
+        showProcessingToast(i18n.processingShare);
+        return publishShareFromProject(projectId, title).then(function (result) {
+            var shareId = result && (result.shareId || result.id);
+            if (!shareId) throw new Error("No share ID returned");
+            var shareTitle = (result && result.title) || title;
+            return {
+                shareId: shareId,
+                shareUrl: buildOgShareUrl(shareId),
+                iframeCode: buildIframeEmbedCode(shareId, shareTitle)
+            };
+        });
+    }
+
+    function afterPublishShare(args) {
+        var shareId = args && args.shareId;
+        if (!shareId) return;
+        var title = (args && args.title) || getShareTitle();
+        generateOgImage(title, function (pngBlob) {
+            var sb = getShareSupabase();
+            if (!pngBlob || !sb) return;
+            sb.storage
+                .from("parallel-coordinates-og-images")
+                .upload(shareId + ".png", pngBlob, {
+                    contentType: "image/png",
+                    upsert: true
+                });
+        });
     }
 
     function generateOgImage(title, callback) {
@@ -620,105 +702,6 @@
             ctx.fillText(title, OG_W / 2, OG_H - 30);
             ogCanvas.toBlob(function (b) { callback(b); }, "image/png");
         }
-    }
-
-    function shareToWeb() {
-        if (rawData.length === 0) {
-            showToast(i18n.shareNoData, "error");
-            return;
-        }
-
-        if (!currentProjectId) {
-            showToast(i18n.shareRequiresSavedProject, "error");
-            return;
-        }
-
-        var sb = getShareSupabase();
-        var title = lastLoadedName || i18n.title;
-        showProcessingToast(i18n.processingShare);
-
-        publishShareFromProject(currentProjectId, title)
-            .then(function (result) {
-                var shareId = result.shareId || result.id;
-                if (!shareId) throw new Error("No share ID returned");
-                var shareTitle = result.title || title;
-
-                generateOgImage(shareTitle, function (pngBlob) {
-                    if (pngBlob && sb) {
-                        sb.storage
-                            .from("parallel-coordinates-og-images")
-                            .upload(shareId + ".png", pngBlob, {
-                                contentType: "image/png",
-                                upsert: true
-                            });
-                    }
-                });
-
-                var ogShareUrl = SUPABASE_URL + "/functions/v1/og-parallel-coordinates-share?id=" + shareId;
-                showShareModal(ogShareUrl, shareTitle);
-            })
-            .catch(function (err) {
-                showToast(i18n.shareFailed + (err.message || err), "error");
-            });
-    }
-
-    function showShareModal(shareUrl, title) {
-        var overlay = document.createElement("div");
-        overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10000;display:flex;align-items:center;justify-content:center;";
-
-        var modal = document.createElement("div");
-        modal.style.cssText = "background:#fff;border-radius:12px;padding:24px;max-width:500px;width:90%;text-align:center;";
-
-        var h3 = document.createElement("h3");
-        h3.textContent = i18n.shareModalTitle;
-        h3.style.cssText = "margin:0 0 16px;font-size:1.1rem;";
-        modal.appendChild(h3);
-
-        var urlBox = document.createElement("input");
-        urlBox.type = "text";
-        urlBox.readOnly = true;
-        urlBox.value = shareUrl;
-        urlBox.style.cssText = "width:100%;padding:8px 12px;font-size:0.85rem;border:1px solid #ccc;border-radius:6px;margin-bottom:12px;";
-        modal.appendChild(urlBox);
-
-        var btnRow = document.createElement("div");
-        btnRow.style.cssText = "display:flex;gap:8px;justify-content:center;flex-wrap:wrap;";
-
-        var copyBtn = document.createElement("button");
-        copyBtn.textContent = i18n.shareCopyUrl;
-        copyBtn.style.cssText = "padding:8px 20px;border:1px solid #ccc;border-radius:6px;background:#e8f4e8;cursor:pointer;font-size:0.9rem;";
-        copyBtn.addEventListener("click", async function () {
-            try {
-                await navigator.clipboard.writeText(shareUrl);
-                window.DatavizAnalytics?.trackShareLinkCopied?.("parallel-coordinates");
-                copyBtn.textContent = i18n.shareCopied;
-                setTimeout(function () { copyBtn.textContent = i18n.shareCopyUrl; }, 2000);
-            } catch (error) {
-                console.warn("[share] Failed to copy URL", error);
-            }
-        });
-        btnRow.appendChild(copyBtn);
-
-        var xBtn = document.createElement("button");
-        xBtn.textContent = i18n.shareOnX;
-        xBtn.style.cssText = "padding:8px 20px;border:1px solid #333;border-radius:6px;background:#333;color:#fff;cursor:pointer;font-size:0.9rem;";
-        xBtn.addEventListener("click", function () {
-            var text = encodeURIComponent(title);
-            var url = encodeURIComponent(shareUrl);
-            window.open("https://x.com/intent/tweet?text=" + text + "&url=" + url, "_blank");
-        });
-        btnRow.appendChild(xBtn);
-
-        var closeBtn = document.createElement("button");
-        closeBtn.textContent = i18n.shareClose;
-        closeBtn.style.cssText = "padding:8px 20px;border:1px solid #ccc;border-radius:6px;background:#fff;cursor:pointer;font-size:0.9rem;";
-        closeBtn.addEventListener("click", function () { overlay.remove(); });
-        btnRow.appendChild(closeBtn);
-
-        modal.appendChild(btnRow);
-        overlay.appendChild(modal);
-        overlay.addEventListener("click", function (e) { if (e.target === overlay) overlay.remove(); });
-        document.body.appendChild(overlay);
     }
 
     function showToast(msg, type, duration) {
