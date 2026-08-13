@@ -655,10 +655,15 @@
         var copyBtn = document.createElement("button");
         copyBtn.textContent = i18n.shareCopyUrl;
         copyBtn.style.cssText = "padding:8px 20px;border:1px solid #ccc;border-radius:6px;background:#e8f4e8;cursor:pointer;font-size:0.9rem;";
-        copyBtn.addEventListener("click", function () {
-            navigator.clipboard.writeText(shareUrl);
-            copyBtn.textContent = i18n.shareCopied;
-            setTimeout(function () { copyBtn.textContent = i18n.shareCopyUrl; }, 2000);
+        copyBtn.addEventListener("click", async function () {
+            try {
+                await navigator.clipboard.writeText(shareUrl);
+                window.DatavizAnalytics?.trackShareLinkCopied?.("parallel-coordinates");
+                copyBtn.textContent = i18n.shareCopied;
+                setTimeout(function () { copyBtn.textContent = i18n.shareCopyUrl; }, 2000);
+            } catch (error) {
+                console.warn("[share] Failed to copy URL", error);
+            }
         });
         btnRow.appendChild(copyBtn);
 
