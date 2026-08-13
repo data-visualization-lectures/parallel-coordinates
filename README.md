@@ -15,6 +15,7 @@ dataviz.jp のパラレルコーディネイトチャート。
 | 公開 URL | `/share.html?id=` |
 | OG 関数 | `og-parallel-coordinates-share` |
 | OG バケット | `parallel-coordinates-og-images` |
+| 公開操作 | 編集画面と `share.html` の `#dvz-controls`（軸スケール / ブラシ Reset） |
 
 新しい書き込みは保存済みプロジェクト必須 → Edge Function → `source_project_id` 単位の upsert。クライアントから `parallel_coordinates_shares` へ直接 INSERT しない。既存の `share.html?id=` と OG URL は読み取りのまま残す。
 

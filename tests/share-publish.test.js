@@ -39,6 +39,42 @@ test('作成画面の公開ボタンはヘッダーにありチャート領域�
   assert.doesNotMatch(css, /\.share-section/);
 });
 
+test('編集画面とシェアページは同じ公開操作 #dvz-controls を持つ', () => {
+  const index = read('index.html');
+  const shareHtml = read('share.html');
+  const css = read('css/style.css');
+
+  assert.match(index, /id=["']dvz-controls["']/);
+  assert.match(index, /id=["']scale-mode["']/);
+  assert.match(index, /id=["']reset-btn["']/);
+  assert.match(shareHtml, /id=["']dvz-controls["']/);
+  assert.match(shareHtml, /id=["']scale-mode["']/);
+  assert.match(shareHtml, /id=["']reset-btn["']/);
+  assert.doesNotMatch(index, /id=["']controls["']/);
+  assert.doesNotMatch(shareHtml, /id=["']controls["']/);
+  assert.match(css, /#dvz-controls/);
+});
+
+test('共有ライブラリはバージョン付き ID ホストを使う', () => {
+  const index = read('index.html');
+  const shareHtml = read('share.html');
+
+  assert.match(index, /id\.data-viz-lectures\.com\/lib\/supabase\.v1\.js/);
+  assert.match(index, /id\.data-viz-lectures\.com\/lib\/dataviz-auth-client\.v1\.js/);
+  assert.match(index, /id\.data-viz-lectures\.com\/lib\/settings-compat\.v1\.js/);
+  assert.match(index, /id\.data-viz-lectures\.com\/lib\/dataviz-tool-header\.v1\.js/);
+  assert.match(shareHtml, /id\.data-viz-lectures\.com\/lib\/supabase\.v1\.js/);
+  assert.match(shareHtml, /id\.data-viz-lectures\.com\/lib\/settings-compat\.v1\.js/);
+  assert.doesNotMatch(index, /app\.dataviz\.jp\/lib\//);
+  assert.doesNotMatch(shareHtml, /app\.dataviz\.jp\/lib\//);
+});
+
+test('projectId 復元は data_url より優先する', () => {
+  const app = read('js/app.js');
+  assert.match(app, /params\.get\("projectId"\)/);
+  assert.match(app, /else if \(dataUrl\)/);
+});
+
 test('既存シェアの読み取り経路は残す', () => {
   const shareHtml = read('share.html');
   const ogFunction = read('supabase/functions/og-parallel-coordinates-share/index.ts');

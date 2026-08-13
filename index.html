@@ -32,24 +32,6 @@
             <div class="toolbar-group">
                 <span class="chart-hint" id="chart-hint"></span>
             </div>
-            <div class="toolbar-separator"></div>
-            <div class="toolbar-group">
-                <span class="toolbar-label">Scale</span>
-                <select id="scale-mode">
-                    <option value="original">Original</option>
-                    <option value="normalize">Min-Max (0-1)</option>
-                    <option value="standardize">Z-Score</option>
-                </select>
-                <span class="info-icon" id="scale-info">i
-                    <span class="tooltip" id="scale-tooltip"></span>
-                </span>
-            </div>
-            <div class="toolbar-separator"></div>
-            <div class="toolbar-group">
-                <span class="toolbar-label">Brush</span>
-                <button id="reset-btn">Reset</button>
-                <span id="row-count"></span>
-            </div>
         </div>
         <div class="toolbar-group toolbar-right">
             <span class="toolbar-label">Export</span>
@@ -60,6 +42,25 @@
     </header>
 
     <main>
+        <div id="dvz-controls">
+            <div class="dvz-controls-row">
+                <label class="dvz-control" for="scale-mode">
+                    <span class="dvz-control-label" id="scale-label">Scale</span>
+                    <select id="scale-mode" class="dvz-control-select">
+                        <option value="original">Original</option>
+                        <option value="normalize">Min-Max (0-1)</option>
+                        <option value="standardize">Z-Score</option>
+                    </select>
+                </label>
+                <span class="info-icon" id="scale-info">i
+                    <span class="tooltip" id="scale-tooltip"></span>
+                </span>
+                <span class="dvz-control-separator"></span>
+                <span class="dvz-control-label" id="brush-label">Brush</span>
+                <button id="reset-btn" class="dvz-control-btn" type="button">Reset</button>
+                <span id="row-count"></span>
+            </div>
+        </div>
         <div id="parcoords-chart" class="parcoords"></div>
         <div id="data-table-container">
             <table id="data-table">
@@ -75,10 +76,10 @@
     </main>
 
     <!-- dataviz.jp 共通ヘッダー -->
-    <script src="https://app.dataviz.jp/lib/supabase.js"></script>
-    <script src="https://app.dataviz.jp/lib/dataviz-auth-client.js"></script>
-    <script src="https://app.dataviz.jp/lib/settings-compat.js"></script>
-    <script src="https://app.dataviz.jp/lib/dataviz-tool-header.js" defer></script>
+    <script src="https://id.data-viz-lectures.com/lib/supabase.v1.js"></script>
+    <script src="https://id.data-viz-lectures.com/lib/dataviz-auth-client.v1.js"></script>
+    <script src="https://id.data-viz-lectures.com/lib/settings-compat.v1.js"></script>
+    <script src="https://id.data-viz-lectures.com/lib/dataviz-tool-header.v1.js" defer></script>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.17/d3.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/parcoords/0.7.0/d3.parcoords.min.js"></script>

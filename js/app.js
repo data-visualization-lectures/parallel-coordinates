@@ -7,7 +7,7 @@
     var SUPABASE_ANON_KEY = "sb_publishable_sAjwbAhC0jnIRjNa34QuTA_CcksMYQG";
     var shareSupabase = null;
 
-    // Schema-driven settings persistence (see https://app.dataviz.jp/lib/settings-compat.js)
+    // Schema-driven settings persistence (see settings-compat.v1.js)
     var SETTINGS_SPEC = {
         version: 1,
         chartType: "parallel-coordinates",
@@ -381,10 +381,17 @@
             }, 200);
         });
 
-        // Auto-load from URL parameter ?data_url= or ?projectId=
+        // Auto-load from URL parameter ?projectId= (takes priority) or ?data_url=
         var params = new URLSearchParams(window.location.search);
+        var projectId = params.get("projectId");
         var dataUrl = params.get("data_url");
-        if (dataUrl) {
+        if (projectId && toolHeader) {
+            toolHeader.loadProject(projectId).then(function (projectData) {
+                currentProjectId = projectId;
+                restoreProject(projectData);
+            });
+            window.history.replaceState({}, document.title, window.location.pathname);
+        } else if (dataUrl) {
             fetch(dataUrl)
                 .then(function (res) { return res.text(); })
                 .then(function (text) {
@@ -392,14 +399,6 @@
                     lastLoadedName = dataUrl.split("/").pop().replace(/\.[^.]+$/, "");
                     loadData(parsed);
                 });
-            window.history.replaceState({}, document.title, window.location.pathname);
-        }
-        var projectId = params.get("projectId");
-        if (projectId && toolHeader) {
-            toolHeader.loadProject(projectId).then(function (projectData) {
-                currentProjectId = projectId;
-                restoreProject(projectData);
-            });
             window.history.replaceState({}, document.title, window.location.pathname);
         }
     });

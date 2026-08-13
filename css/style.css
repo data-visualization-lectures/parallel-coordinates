@@ -158,6 +158,59 @@ main {
     overflow: hidden;
 }
 
+#dvz-controls {
+    display: flex;
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+    align-items: center;
+    max-height: 56px;
+    margin-bottom: 12px;
+    overflow-x: auto;
+    overflow-y: hidden;
+}
+
+#dvz-controls:empty {
+    display: none;
+}
+
+#dvz-controls > * {
+    flex: 0 0 auto;
+    min-width: 0;
+}
+
+.dvz-controls-row {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.dvz-control {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.dvz-control-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #999;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.dvz-control-select {
+    width: 96px;
+    min-width: 96px;
+    max-width: 150px;
+}
+
+.dvz-control-separator {
+    width: 1px;
+    height: 28px;
+    background: #ddd;
+}
+
 #parcoords-chart {
     background: #fff;
     border-radius: 6px;

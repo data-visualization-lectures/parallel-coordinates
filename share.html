@@ -52,21 +52,50 @@ body {
   font-weight: 600;
   margin-bottom: 12px;
 }
-#controls {
+#dvz-controls {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  flex-wrap: nowrap;
   align-items: center;
+  max-height: 56px;
   margin-bottom: 12px;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
-#controls .separator {
+#dvz-controls > * {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+.dvz-controls-row {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 8px;
+}
+.dvz-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.dvz-control-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.dvz-control-select {
+  width: 96px;
+  min-width: 96px;
+  max-width: 96px;
+}
+.dvz-control-separator {
   width: 1px;
   height: 28px;
   background: #ccc;
   margin: 0 4px;
 }
-#controls select,
-#controls button {
+#dvz-controls select,
+#dvz-controls button {
   font-size: 0.85rem;
   padding: 6px 14px;
   border: 1px solid #ccc;
@@ -75,17 +104,10 @@ body {
   cursor: pointer;
   transition: all 0.15s;
 }
-#controls select:hover,
-#controls button:hover {
+#dvz-controls select:hover,
+#dvz-controls button:hover {
   border-color: #888;
   background: #f0f0f0;
-}
-#controls .toolbar-label {
-  font-size: 11px;
-  font-weight: 600;
-  color: #999;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
 }
 #row-count {
   font-size: 13px;
@@ -184,19 +206,21 @@ body {
     <h1 id="share-title"></h1>
     <p class="chart-hint" id="chart-hint"></p>
 
-    <div id="controls">
-      <span class="toolbar-label">Scale</span>
-      <select id="scale-mode">
-        <option value="original">Original</option>
-        <option value="normalize">Min-Max (0-1)</option>
-        <option value="standardize">Z-Score</option>
-      </select>
-
-      <div class="separator"></div>
-
-      <span class="toolbar-label">Brush</span>
-      <button id="reset-btn">Reset</button>
-      <span id="row-count"></span>
+    <div id="dvz-controls">
+      <div class="dvz-controls-row">
+        <label class="dvz-control" for="scale-mode">
+          <span class="dvz-control-label">Scale</span>
+          <select id="scale-mode" class="dvz-control-select">
+            <option value="original">Original</option>
+            <option value="normalize">Min-Max (0-1)</option>
+            <option value="standardize">Z-Score</option>
+          </select>
+        </label>
+        <span class="dvz-control-separator"></span>
+        <span class="dvz-control-label">Brush</span>
+        <button id="reset-btn" class="dvz-control-btn" type="button">Reset</button>
+        <span id="row-count"></span>
+      </div>
     </div>
 
     <div id="parcoords-chart" class="parcoords"></div>
@@ -219,8 +243,8 @@ body {
   </div>
 </div>
 
-<script src="https://app.dataviz.jp/lib/supabase.js"></script>
-<script src="https://app.dataviz.jp/lib/settings-compat.js"></script>
+<script src="https://id.data-viz-lectures.com/lib/supabase.v1.js"></script>
+<script src="https://id.data-viz-lectures.com/lib/settings-compat.v1.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.17/d3.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/parcoords/0.7.0/d3.parcoords.min.js"></script>
 
