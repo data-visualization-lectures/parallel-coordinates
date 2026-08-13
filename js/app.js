@@ -44,9 +44,9 @@
         sample: isJa ? "サンプル" : "Sample",
         noData: isJa ? "データがありません" : "No data loaded",
         shareChart: isJa ? "シェア" : "Share",
-        shareTitle: isJa ? "シェアするチャートのタイトルを入力:" : "Enter a title for the shared chart:",
         shareFailed: isJa ? "シェアに失敗: " : "Share failed: ",
         shareNoData: isJa ? "データがありません" : "No data loaded",
+        shareRequiresSavedProject: isJa ? "シェアする前にプロジェクトを保存してください" : "Save the project before sharing.",
         shareCopyUrl: isJa ? "URLをコピー" : "Copy URL",
         shareCopied: isJa ? "コピーしました!" : "Copied!",
         shareOnX: isJa ? "Xでシェア" : "Share on X",
@@ -514,6 +514,44 @@
         return shareSupabase;
     }
 
+    async function getDatavizAccessToken() {
+        var sb = window.datavizSupabase;
+        if (!sb || !sb.auth) return null;
+        var result = await sb.auth.getSession();
+        return (result && result.data && result.data.session && result.data.session.access_token) || null;
+    }
+
+    function publishShareErrorMessage(payload, status) {
+        var err = payload && payload.error;
+        if (typeof err === "string" && err) return err;
+        if (err && typeof err === "object" && err.message) return String(err.message);
+        if (payload && payload.message) return String(payload.message);
+        return "Share publish failed (" + status + ")";
+    }
+
+    async function publishShareFromProject(projectId, fallbackTitle) {
+        var accessToken = await getDatavizAccessToken();
+        if (!accessToken) throw new Error("Login required");
+
+        var response = await fetch(SUPABASE_URL + "/functions/v1/publish-parallel-coordinates-share", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-Dataviz-Authorization": "Bearer " + accessToken
+            },
+            body: JSON.stringify({
+                projectId: projectId,
+                fallbackTitle: fallbackTitle || null
+            })
+        });
+
+        var payload = await response.json().catch(function () { return null; });
+        if (!response.ok) {
+            throw new Error(publishShareErrorMessage(payload, response.status));
+        }
+        return payload || {};
+    }
+
     function generateOgImage(title, callback) {
         var container = document.getElementById("parcoords-chart");
         var canvases = container.querySelectorAll("canvas");
@@ -590,40 +628,34 @@
             return;
         }
 
-        var sb = getShareSupabase();
-        if (!sb) {
-            showToast(i18n.shareFailed + "Supabase not loaded", "error");
+        if (!currentProjectId) {
+            showToast(i18n.shareRequiresSavedProject, "error");
             return;
         }
 
-        var title = prompt(i18n.shareTitle, lastLoadedName || i18n.title);
-        if (!title) return;
-
-        var chartConfig = getProjectData();
+        var sb = getShareSupabase();
+        var title = lastLoadedName || i18n.title;
         showProcessingToast(i18n.processingShare);
 
-        sb.from("parallel_coordinates_shares")
-            .insert({ title: title, chart_config: chartConfig })
-            .select("id")
-            .single()
+        publishShareFromProject(currentProjectId, title)
             .then(function (result) {
-                if (result.error) throw result.error;
-                var share = result.data;
+                var shareId = result.shareId || result.id;
+                if (!shareId) throw new Error("No share ID returned");
+                var shareTitle = result.title || title;
 
-                // Upload OG image in background
-                generateOgImage(title, function (pngBlob) {
-                    if (pngBlob) {
+                generateOgImage(shareTitle, function (pngBlob) {
+                    if (pngBlob && sb) {
                         sb.storage
                             .from("parallel-coordinates-og-images")
-                            .upload(share.id + ".png", pngBlob, {
+                            .upload(shareId + ".png", pngBlob, {
                                 contentType: "image/png",
                                 upsert: true
                             });
                     }
                 });
 
-                var ogShareUrl = SUPABASE_URL + "/functions/v1/og-parallel-coordinates-share?id=" + share.id;
-                showShareModal(ogShareUrl, title);
+                var ogShareUrl = SUPABASE_URL + "/functions/v1/og-parallel-coordinates-share?id=" + shareId;
+                showShareModal(ogShareUrl, shareTitle);
             })
             .catch(function (err) {
                 showToast(i18n.shareFailed + (err.message || err), "error");
