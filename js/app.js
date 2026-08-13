@@ -87,11 +87,7 @@
                             toolHeader.showSaveModal(payload);
                         });
                     }, align: "right" },
-                    { label: isJa ? "シェア" : "Share", action: function () {
-                        if (typeof toolHeader.shareProject === "function") {
-                            toolHeader.shareProject();
-                        }
-                    }, align: "right" }
+                    { label: isJa ? "シェア" : "Share", action: requestShare, align: "right" }
                 ]
             });
 
@@ -596,6 +592,17 @@
         var title = escapeHtmlAttr(rawTitle || i18n.title);
         var src = buildPublicSharePageUrl(shareId) + "&embed=1";
         return '<iframe title="' + title + '" src="' + src + '" frameborder="0" scrolling="auto" referrerpolicy="strict-origin-when-cross-origin" loading="lazy" allowfullscreen="true" style="display:block;width:100%;max-width:100%;height:auto;aspect-ratio:16/10;border:0;"></iframe>';
+    }
+
+    function requestShare() {
+        if (rawData.length === 0) {
+            showToast(i18n.noData, "error");
+            return;
+        }
+        var header = document.querySelector("dataviz-tool-header");
+        if (header && typeof header.shareProject === "function") {
+            header.shareProject();
+        }
     }
 
     function publishShareForHeader(args) {

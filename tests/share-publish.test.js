@@ -32,6 +32,8 @@ test('作成画面の公開ボタンはヘッダーにありチャート領域�
 
   assert.match(app, /setShareConfig/);
   assert.match(app, /shareProject/);
+  assert.match(app, /function requestShare/);
+  assert.match(app, /header\.shareProject/);
   assert.doesNotMatch(index, /id=["']share-btn["']/);
   assert.doesNotMatch(index, /share-section/);
   assert.doesNotMatch(css, /\.share-section/);
