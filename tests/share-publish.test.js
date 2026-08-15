@@ -75,6 +75,15 @@ test('projectId 復元は data_url より優先する', () => {
   assert.match(app, /else if \(dataUrl\)/);
 });
 
+test('シェアモーダルの URL は share.html であり OG 関数ではない', () => {
+  const app = read('js/app.js');
+
+  assert.match(app, /shareUrl:\s*buildPublicSharePageUrl\(shareId\)/);
+  assert.match(app, /share\.html\?id=/);
+  assert.doesNotMatch(app, /shareUrl:\s*buildOgShareUrl/);
+  assert.doesNotMatch(app, /og-parallel-coordinates-share\?id=/);
+});
+
 test('既存シェアの読み取り経路は残す', () => {
   const shareHtml = read('share.html');
   const ogFunction = read('supabase/functions/og-parallel-coordinates-share/index.ts');

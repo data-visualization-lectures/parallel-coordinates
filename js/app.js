@@ -583,10 +583,6 @@
         return "https://parallel-coordinates.dataviz.jp/share.html?id=" + encodeURIComponent(shareId);
     }
 
-    function buildOgShareUrl(shareId) {
-        return SUPABASE_URL + "/functions/v1/og-parallel-coordinates-share?id=" + encodeURIComponent(shareId);
-    }
-
     function buildIframeEmbedCode(shareId, rawTitle) {
         var title = escapeHtmlAttr(rawTitle || i18n.title);
         var src = buildPublicSharePageUrl(shareId) + "&embed=1";
@@ -618,7 +614,7 @@
             var shareTitle = (result && result.title) || title;
             return {
                 shareId: shareId,
-                shareUrl: buildOgShareUrl(shareId),
+                shareUrl: buildPublicSharePageUrl(shareId),
                 iframeCode: buildIframeEmbedCode(shareId, shareTitle)
             };
         });
