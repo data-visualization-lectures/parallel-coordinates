@@ -68,6 +68,23 @@ function readDatavizAccessToken(req: Request) {
   return match?.[1]?.trim() || null;
 }
 
+function decodeJwtSubject(token: string | null) {
+  if (!token) return null;
+
+  try {
+    const [, payload] = token.split(".");
+    if (!payload) return null;
+
+    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = normalized + "=".repeat((4 - (normalized.length % 4)) % 4);
+    const decoded = atob(padded);
+    const parsed = JSON.parse(decoded);
+    return typeof parsed?.sub === "string" ? parsed.sub : null;
+  } catch (_error) {
+    return null;
+  }
+}
+
 function cloneJson<T>(value: T): T {
   return JSON.parse(JSON.stringify(value));
 }
@@ -232,11 +249,13 @@ Deno.serve(async (req) => {
     );
     const title = resolveShareTitle(chartConfig, fallbackTitle, projectName);
 
+    const createdBy = decodeJwtSubject(accessToken);
     const payload: Record<string, unknown> = {
       title,
       chart_config: chartConfig,
       source_project_id: projectId,
     };
+    if (createdBy) payload.created_by = createdBy;
 
     const data = await saveShareForProject(projectId, payload);
 
